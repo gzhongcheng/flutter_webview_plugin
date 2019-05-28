@@ -135,67 +135,72 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
     webviewReference.dispose();
   }
 
+  _backAction() async {
+    bool canBack = await webviewReference.goBack();
+    if(!canBack) {
+      webviewReference.dismiss();
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: widget.appBar ?? new AppBar(
-        elevation: 2,
-        brightness: Brightness.dark,
-        backgroundColor: Theme.of(context).primaryColor,
-        leading: IconButton(
-          padding: EdgeInsets.all(0),
-          icon: Icon(Icons.arrow_back_ios,color: Colors.white,),
-          onPressed: () async {
-            bool canBack = await webviewReference.goBack();
-            if(!canBack) {
-              webviewReference.dismiss();
-              Navigator.of(context).pop();
+    return new WillPopScope(
+      child: Scaffold(
+        appBar: widget.appBar ?? new AppBar(
+          elevation: 2,
+          brightness: Brightness.dark,
+          backgroundColor: Theme.of(context).primaryColor,
+          leading: IconButton(
+            padding: EdgeInsets.all(0),
+            icon: Icon(Icons.arrow_back_ios,color: Colors.white,),
+            onPressed: _backAction,
+          ),
+          title: Text(widget.title,style: TextStyle(fontSize: 16,color: Colors.white),),
+        ),
+        resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+        persistentFooterButtons: widget.persistentFooterButtons,
+        bottomNavigationBar: widget.bottomNavigationBar,
+        body: _WebviewPlaceholder(
+          onRectChanged: (Rect value) {
+            if (_rect == null) {
+              _rect = value;
+              webviewReference.launch(
+                  widget.url,
+                  headers: widget.headers,
+                  withJavascript: widget.withJavascript,
+                  clearCache: widget.clearCache,
+                  clearCookies: widget.clearCookies,
+                  cookieList: widget.cookieList,
+                  hidden: widget.hidden,
+                  enableAppScheme: widget.enableAppScheme,
+                  userAgent: widget.userAgent,
+                  rect: _rect,
+                  withZoom: widget.withZoom,
+                  withLocalStorage: widget.withLocalStorage,
+                  withLocalUrl: widget.withLocalUrl,
+                  scrollBar: widget.scrollBar,
+                  supportMultipleWindows: widget.supportMultipleWindows,
+                  appCacheEnabled: widget.appCacheEnabled,
+                  allowFileURLs: widget.allowFileURLs,
+                  invalidUrlRegex: widget.invalidUrlRegex,
+                  geolocationEnabled: widget.geolocationEnabled
+              );
+            } else {
+              if (_rect != value) {
+                _rect = value;
+                _resizeTimer?.cancel();
+                _resizeTimer = Timer(const Duration(milliseconds: 250), () {
+                  // avoid resizing to fast when build is called multiple time
+                  webviewReference.resize(_rect);
+                });
+              }
             }
           },
+          child: widget.initialChild ?? const Center(child: const CircularProgressIndicator()),
         ),
-        title: Text(widget.title,style: TextStyle(fontSize: 16,color: Colors.white),),
       ),
-      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-      persistentFooterButtons: widget.persistentFooterButtons,
-      bottomNavigationBar: widget.bottomNavigationBar,
-      body: _WebviewPlaceholder(
-        onRectChanged: (Rect value) {
-          if (_rect == null) {
-            _rect = value;
-            webviewReference.launch(
-              widget.url,
-              headers: widget.headers,
-              withJavascript: widget.withJavascript,
-              clearCache: widget.clearCache,
-              clearCookies: widget.clearCookies,
-                cookieList: widget.cookieList,
-              hidden: widget.hidden,
-              enableAppScheme: widget.enableAppScheme,
-              userAgent: widget.userAgent,
-              rect: _rect,
-              withZoom: widget.withZoom,
-              withLocalStorage: widget.withLocalStorage,
-              withLocalUrl: widget.withLocalUrl,
-              scrollBar: widget.scrollBar,
-              supportMultipleWindows: widget.supportMultipleWindows,
-              appCacheEnabled: widget.appCacheEnabled,
-              allowFileURLs: widget.allowFileURLs,
-              invalidUrlRegex: widget.invalidUrlRegex,
-              geolocationEnabled: widget.geolocationEnabled
-            );
-          } else {
-            if (_rect != value) {
-              _rect = value;
-              _resizeTimer?.cancel();
-              _resizeTimer = Timer(const Duration(milliseconds: 250), () {
-                // avoid resizing to fast when build is called multiple time
-                webviewReference.resize(_rect);
-              });
-            }
-          }
-        },
-        child: widget.initialChild ?? const Center(child: const CircularProgressIndicator()),
-      ),
+      onWillPop: _backAction,
     );
   }
 }
