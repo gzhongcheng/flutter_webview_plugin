@@ -12,6 +12,7 @@ import android.webkit.ValueCallback;
 import android.os.Build;
 
 import java.util.Map;
+import java.util.ArrayList;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -102,6 +103,7 @@ public class FlutterWebviewPlugin implements MethodCallHandler, PluginRegistry.A
         boolean useWideViewPort = call.argument("useWideViewPort");
         String invalidUrlRegex = call.argument("invalidUrlRegex");
         boolean geolocationEnabled = call.argument("geolocationEnabled");
+        ArrayList<Map<String,String>> cookieList = call.argument("cookieList");
 
         if (webViewManager == null || webViewManager.closed == true) {
             webViewManager = new WebviewManager(activity, context);
@@ -118,6 +120,7 @@ public class FlutterWebviewPlugin implements MethodCallHandler, PluginRegistry.A
                 userAgent,
                 url,
                 headers,
+                cookieList,
                 withZoom,
                 withLocalStorage,
                 scrollBar,

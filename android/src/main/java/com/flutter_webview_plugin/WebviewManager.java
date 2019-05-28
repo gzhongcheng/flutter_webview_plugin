@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.Date;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -43,6 +44,7 @@ class WebviewManager {
 
     private ValueCallback<Uri> mUploadMessage;
     private ValueCallback<Uri[]> mUploadMessageArray;
+    private ArrayList<Map<String,String>> mCookieList;
     private final static int FILECHOOSER_RESULTCODE=1;
     private Uri fileUri;
     private Uri videoUri;
@@ -232,6 +234,7 @@ class WebviewManager {
 
                 Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
                 chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+                chooserIntent.putExtra(Intent.EXTRA_TITLE, "Image Chooser");
                 chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
                 activity.startActivityForResult(chooserIntent, FILECHOOSER_RESULTCODE);
                 return true;
@@ -329,6 +332,24 @@ class WebviewManager {
         webView.clearCache(true);
         webView.clearFormData();
     }
+    
+    void  setCookie(String url) {
+        CookieManager cookieManager = CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+        cookieManager.removeAllCookie();
+        cookieManager.removeSessionCookie();//移除
+        
+        Uri uri = Uri.parse(url);
+        String domain = uri.getHost();
+        
+        for (int i = 0; i < this.mCookieList.size(); i++) {
+            Map<String, String> map = this.mCookieList.get(i);
+            cookieManager.setCookie(domain, map.get("k") + '=' + map.get("v"));
+        }
+        //cookies是在HttpClient中获得的cookie
+        
+        cookieManager.flush();
+    }
 
     void openUrl(
             boolean withJavascript,
@@ -338,6 +359,7 @@ class WebviewManager {
             String userAgent,
             String url,
             Map<String, String> headers,
+            ArrayList<Map<String,String>> cookieList,
             boolean withZoom,
             boolean withLocalStorage,
             boolean scrollBar,
@@ -398,6 +420,11 @@ class WebviewManager {
         if(!scrollBar){
             webView.setVerticalScrollBarEnabled(false);
         }
+        
+        this.mCookieList = cookieList;
+        if(this.mCookieList != null){
+            setCookie(url);
+        }
 
         if (headers != null) {
             webView.loadUrl(url, headers);
@@ -454,6 +481,7 @@ class WebviewManager {
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
         }
+        result.success(webView.canGoBack());
     }
     /**
     * Navigates forward on the Webview.

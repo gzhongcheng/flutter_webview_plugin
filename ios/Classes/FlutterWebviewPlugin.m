@@ -7,6 +7,7 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
     BOOL _enableAppScheme;
     BOOL _enableZoom;
     NSString* _invalidUrlRegex;
+    NSArray *_cookieList;
 }
 @end
 
@@ -62,15 +63,19 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
     } else if ([@"cleanCookies" isEqualToString:call.method]) {
         [self cleanCookies];
     } else if ([@"back" isEqualToString:call.method]) {
-        [self back];
-        result(nil);
+        BOOL canGoBack = [self back];
+        result(@(canGoBack));
     } else if ([@"forward" isEqualToString:call.method]) {
         [self forward];
         result(nil);
     } else if ([@"reload" isEqualToString:call.method]) {
         [self reload];
         result(nil);
-    } else {
+    } else if ([@"dismiss" isEqualToString:call.method]) {
+        [self dismiss];
+        result(nil);
+    }
+    else {
         result(FlutterMethodNotImplemented);
     }
 }
@@ -86,7 +91,10 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
     NSNumber *scrollBar = call.arguments[@"scrollBar"];
     NSNumber *withJavascript = call.arguments[@"withJavascript"];
     _invalidUrlRegex = call.arguments[@"invalidUrlRegex"];
-
+    NSString *url = call.arguments[@"url"];
+    NSArray *cookies = call.arguments[@"cookieList"];
+    _cookieList = cookies;
+    
     if (clearCache != (id)[NSNull null] && [clearCache boolValue]) {
         [[NSURLCache sharedURLCache] removeAllCachedResponses];
     }
@@ -107,7 +115,28 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
         rc = self.viewController.view.bounds;
     }
 
-    self.webview = [[WKWebView alloc] initWithFrame:rc];
+    //应用于 ajax 请求的 cookie 设置
+    WKUserContentController *userContentController = WKUserContentController.new;
+    // 应用于 request 的 cookie 设置
+    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString: url]];
+    NSDictionary *headFields = request.allHTTPHeaderFields;
+    
+    [cookies enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        NSDictionary *dic = obj;
+        NSString *cookieSource = [NSString stringWithFormat:@"document.cookie = '%@=%@;path=/';",dic[@"k"], dic[@"v"]];
+        WKUserScript *cookieScript = [[WKUserScript alloc] initWithSource:cookieSource injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:NO];
+        [userContentController addUserScript:cookieScript];
+        
+        NSString *cookie = headFields[dic[@"k"]];
+        if (cookie == nil) {
+            [request addValue:[NSString stringWithFormat:@"%@=%@",dic[@"k"] , dic[@"v"]] forHTTPHeaderField:@"Cookie"];
+        }
+    }];
+    
+    WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
+    config.userContentController = userContentController;
+    
+    self.webview = [[WKWebView alloc] initWithFrame:rc configuration:config];
     self.webview.UIDelegate = self;
     self.webview.navigationDelegate = self;
     self.webview.scrollView.delegate = self;
@@ -201,6 +230,14 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
     }
 }
 
+- (void)dismiss {
+    if (self) {
+        [UIView animateWithDuration:0.25 animations:^{
+            self.webview.alpha = 0;
+        }];
+    }
+}
+
 - (void)closeWebView {
     if (self.webview != nil) {
         [self.webview stopLoading];
@@ -237,10 +274,13 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
         [self.webview stopLoading];
     }
 }
-- (void)back {
+- (BOOL)back {
+    BOOL canGoBack = NO;
     if (self.webview != nil) {
+        canGoBack = [self.webview canGoBack];
         [self.webview goBack];
     }
+    return canGoBack;
 }
 - (void)forward {
     if (self.webview != nil) {
@@ -279,6 +319,21 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction
     decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
 
+    NSString *cookieString = navigationAction.request.allHTTPHeaderFields[@"Cookie"];
+    if(cookieString == nil){
+        NSMutableString *setCookie = [NSMutableString string];
+        [_cookieList enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            NSDictionary *dic = obj;
+            [setCookie appendString:[NSString stringWithFormat:@"%@=%@;",dic[@"k"] , dic[@"v"]]];
+        }];
+        NSMutableURLRequest *urlRequest = [[NSMutableURLRequest alloc] initWithURL:navigationAction.request.URL];
+        urlRequest.allHTTPHeaderFields = navigationAction.request.allHTTPHeaderFields;
+        [urlRequest setValue:setCookie forHTTPHeaderField:@"Cookie"];
+        [webView loadRequest:urlRequest];
+        decisionHandler(WKNavigationActionPolicyCancel);
+        return;
+    }
+    
     BOOL isInvalid = [self checkInvalidUrl: navigationAction.request.URL];
 
     id data = @{@"url": navigationAction.request.URL.absoluteString,

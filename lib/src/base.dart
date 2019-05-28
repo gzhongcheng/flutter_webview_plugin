@@ -116,6 +116,7 @@ class FlutterWebviewPlugin {
     bool withJavascript,
     bool clearCache,
     bool clearCookies,
+    List<Map<String,String>> cookieList,
     bool hidden,
     bool enableAppScheme,
     Rect rect,
@@ -137,6 +138,7 @@ class FlutterWebviewPlugin {
       'clearCache': clearCache ?? false,
       'hidden': hidden ?? false,
       'clearCookies': clearCookies ?? false,
+      'cookieList': cookieList ?? [],
       'enableAppScheme': enableAppScheme ?? true,
       'userAgent': userAgent,
       'withZoom': withZoom ?? false,
@@ -180,7 +182,7 @@ class FlutterWebviewPlugin {
   Future<Null> reload() async => await _channel.invokeMethod('reload');
 
   /// Navigates back on the Webview.
-  Future<Null> goBack() async => await _channel.invokeMethod('back');
+  Future<bool> goBack() async => await _channel.invokeMethod('back');
 
   /// Navigates forward on the Webview.
   Future<Null> goForward() async => await _channel.invokeMethod('forward');
@@ -227,6 +229,10 @@ class FlutterWebviewPlugin {
     }
 
     return cookies;
+  }
+
+  void dismiss() {
+    _channel.invokeMethod('dismiss', null);
   }
 
   /// resize webview

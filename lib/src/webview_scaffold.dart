@@ -11,8 +11,10 @@ class WebviewScaffold extends StatefulWidget {
   const WebviewScaffold({
     Key key,
     this.appBar,
+    this.title,
     @required this.url,
     this.headers,
+    this.cookieList,
     this.withJavascript,
     this.clearCache,
     this.clearCookies,
@@ -36,8 +38,10 @@ class WebviewScaffold extends StatefulWidget {
   }) : super(key: key);
 
   final PreferredSizeWidget appBar;
+  final String title;
   final String url;
   final Map<String, String> headers;
+  final List<Map<String,String>> cookieList;
   final bool withJavascript;
   final bool clearCache;
   final bool clearCookies;
@@ -70,6 +74,7 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
   StreamSubscription<WebViewStateChanged> _onStateChanged;
 
   var _onBack;
+  var _onDestroy;
 
   @override
   void initState() {
@@ -92,9 +97,14 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
       }
     });
 
+    _onDestroy = webviewReference.onDestroy.listen((_) {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+
     if (widget.hidden) {
-      _onStateChanged =
-          webviewReference.onStateChanged.listen((WebViewStateChanged state) {
+      _onStateChanged = webviewReference.onStateChanged.listen((WebViewStateChanged state) {
         if (state.type == WebViewState.finishLoad) {
           webviewReference.show();
         }
@@ -116,6 +126,7 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
   void dispose() {
     super.dispose();
     _onBack?.cancel();
+    _onDestroy?.cancel();
     _resizeTimer?.cancel();
     webviewReference.close();
     if (widget.hidden) {
@@ -127,7 +138,23 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.appBar,
+      appBar: widget.appBar ?? new AppBar(
+        elevation: 2,
+        brightness: Brightness.dark,
+        backgroundColor: Theme.of(context).primaryColor,
+        leading: IconButton(
+          padding: EdgeInsets.all(0),
+          icon: Icon(Icons.arrow_back_ios,color: Colors.white,),
+          onPressed: () async {
+            bool canBack = await webviewReference.goBack();
+            if(!canBack) {
+              webviewReference.dismiss();
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+        title: Text(widget.title,style: TextStyle(fontSize: 16,color: Colors.white),),
+      ),
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       persistentFooterButtons: widget.persistentFooterButtons,
       bottomNavigationBar: widget.bottomNavigationBar,
@@ -141,6 +168,7 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
               withJavascript: widget.withJavascript,
               clearCache: widget.clearCache,
               clearCookies: widget.clearCookies,
+                cookieList: widget.cookieList,
               hidden: widget.hidden,
               enableAppScheme: widget.enableAppScheme,
               userAgent: widget.userAgent,
