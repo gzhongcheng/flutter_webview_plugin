@@ -83,18 +83,18 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
 
     _onBack = webviewReference.onBack.listen((_) async {
       if (!mounted) return;
-
-      // The willPop/pop pair here is equivalent to Navigator.maybePop(),
-      // which is what's called from the flutter back button handler.
-      final pop = await _topMostRoute.willPop();
-      if (pop == RoutePopDisposition.pop) {
-        // Close the webview if it's on the route at the top of the stack.
-        final isOnTopMostRoute = _topMostRoute == ModalRoute.of(context);
-        if (isOnTopMostRoute) {
-          webviewReference.close();
-        }
-        Navigator.pop(context);
-      }
+      _backAction();
+//      // The willPop/pop pair here is equivalent to Navigator.maybePop(),
+//      // which is what's called from the flutter back button handler.
+//      final pop = await _topMostRoute.willPop();
+//      if (pop == RoutePopDisposition.pop) {
+//        // Close the webview if it's on the route at the top of the stack.
+//        final isOnTopMostRoute = _topMostRoute == ModalRoute.of(context);
+//        if (isOnTopMostRoute) {
+//          webviewReference.close();
+//        }
+//        Navigator.pop(context);
+//      }
     });
 
     _onDestroy = webviewReference.onDestroy.listen((_) {
@@ -145,8 +145,10 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    return new WillPopScope(
-      child: Scaffold(
+    return new
+//    WillPopScope(
+//      child:
+        Scaffold(
         appBar: widget.appBar ?? new AppBar(
           elevation: 2,
           brightness: Brightness.dark,
@@ -199,8 +201,8 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
           },
           child: widget.initialChild ?? const Center(child: const CircularProgressIndicator()),
         ),
-      ),
-      onWillPop: _backAction,
+//      ),
+//      onWillPop: _backAction,
     );
   }
 }

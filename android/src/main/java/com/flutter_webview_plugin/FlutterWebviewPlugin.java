@@ -175,7 +175,7 @@ public class FlutterWebviewPlugin implements MethodCallHandler, PluginRegistry.A
         if (webViewManager != null) {
             webViewManager.back(call, result);
         }
-        result.success(null);
+        result.success(false);
     }
 
     /**
