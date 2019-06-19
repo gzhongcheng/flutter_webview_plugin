@@ -4,13 +4,18 @@ package com.flutter_webview_plugin;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Point;
+import android.net.Uri;
 import android.view.Display;
 import android.widget.FrameLayout;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.os.Build;
+import android.widget.Toast;
 
+import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 
@@ -87,8 +92,20 @@ public class FlutterWebviewPlugin implements MethodCallHandler, PluginRegistry.A
     }
 
     private void openUrl(MethodCall call, MethodChannel.Result result) {
-        boolean hidden = call.argument("hidden");
         String url = call.argument("url");
+        if (url.contains("baidumap://")){
+            goToBaiduMap(url);
+            return;
+        }
+        if (url.contains("iosamap://")){
+            goToGaodeMap(url);
+            return;
+        }
+        if (url.contains("comgooglemaps://")){
+            goToTencentMap(url);
+            return;
+        }
+        boolean hidden = call.argument("hidden");
         String userAgent = call.argument("userAgent");
         boolean withJavascript = call.argument("withJavascript");
         boolean clearCache = call.argument("clearCache");
@@ -132,6 +149,89 @@ public class FlutterWebviewPlugin implements MethodCallHandler, PluginRegistry.A
                 geolocationEnabled
         );
         result.success(null);
+    }
+
+    /**
+     * 检测程序是否安装
+     *
+     * @param packageName
+     * @return
+     */
+    private boolean isInstalled(String packageName) {
+        PackageManager manager = context.getPackageManager();
+        //获取所有已安装程序的包信息
+        List<PackageInfo> installedPackages = manager.getInstalledPackages(0);
+        if (installedPackages != null) {
+            for (PackageInfo info : installedPackages) {
+                if (info.packageName.equals(packageName))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 跳转百度地图
+     */
+    private void goToBaiduMap(String url) {
+        if (!isInstalled("com.baidu.BaiduMap")) {
+            Toast.makeText(activity, "请先安装百度地图客户端", Toast.LENGTH_LONG).show();
+            return;
+        }
+        String [] temp = null;
+        temp = url.substring("baidumap://".length()).split("&");
+        if (temp.length < 3){
+            return;
+        }
+        Intent intent = new Intent();
+        intent.setData(Uri.parse("baidumap://map/direction?destination=latlng:"
+                + temp[1] + ","
+                + temp[2] + "|name:" + temp[0] + // 终点
+                "&mode=driving" + // 导航路线方式
+                "&src=com.gzc.zhipaiche"));
+        activity.startActivity(intent); // 启动调用
+    }
+
+    /**
+     * 跳转高德地图
+     */
+    private void goToGaodeMap(String url) {
+        if (!isInstalled("com.autonavi.minimap")) {
+            Toast.makeText(activity, "请先安装高德地图客户端", Toast.LENGTH_LONG).show();
+            return;
+        }
+        String [] temp = null;
+        temp = url.substring("baidumap://".length()).split("&");
+        if (temp.length < 3){
+            return;
+        }
+        StringBuffer stringBuffer = new StringBuffer("androidamap://navi?sourceApplication=").append("amap");
+        stringBuffer.append("&lat=").append(temp[1])
+                .append("&lon=").append(temp[2]).append("&keywords=" + temp[0])
+                .append("&dev=").append(0)
+                .append("&style=").append(2);
+        Intent intent = new Intent("android.intent.action.VIEW", Uri.parse(stringBuffer.toString()));
+        intent.setPackage("com.autonavi.minimap");
+        activity.startActivity(intent);
+    }
+
+    /**
+     * 跳转腾讯地图
+     */
+    private void goToTencentMap(String url) {
+        if (!isInstalled("com.tencent.map")) {
+            Toast.makeText(activity, "请先安装腾讯地图客户端", Toast.LENGTH_LONG).show();
+            return;
+        }
+        String [] temp = null;
+        temp = url.substring("baidumap://".length()).split("&");
+        if (temp.length < 3){
+            return;
+        }
+        StringBuffer stringBuffer = new StringBuffer("qqmap://map/routeplan?type=drive")
+                .append("&tocoord=").append(temp[1]).append(",").append(temp[2]).append("&to=" + temp[0]);
+        Intent intent = new Intent("android.intent.action.VIEW", Uri.parse(stringBuffer.toString()));
+        activity.startActivity(intent);
     }
 
     private FrameLayout.LayoutParams buildLayoutParams(MethodCall call) {

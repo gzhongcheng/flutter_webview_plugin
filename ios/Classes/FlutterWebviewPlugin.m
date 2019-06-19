@@ -159,7 +159,36 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
     UIViewController* currentViewController = presentedViewController != nil ? presentedViewController : self.viewController;
     [currentViewController.view addSubview:self.webview];
 
-    [self navigate:call];
+    // 打开地图导航
+    // 格式为map://targetName&lat&lng
+    if ([url hasPrefix:@"baidumap://"] && [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"baidumap://"]]) {
+        // 百度地图
+        NSArray *params = [[url substringFromIndex:@"baidumap://".length] componentsSeparatedByString:@"&"];
+        NSString *urlString = [[NSString stringWithFormat:@"baidumap://map/direction?origin={{我的位置}}&destination=latlng:%@,%@|name=目的地&mode=driving&coord_type=gcj02",params[1], params[2]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:urlString]];
+        return;
+    } else if ([url hasPrefix:@"iosamap://"] && [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"iosamap://"]]) {
+        // 高德地图
+        NSArray *params = [[url substringFromIndex:@"iosamap://".length] componentsSeparatedByString:@"&"];
+        NSString *urlString = [[NSString stringWithFormat:@"iosamap://navi?sourceApplication=%@&backScheme=%@&lat=%@&lon=%@&dev=0&style=2",@"直拍车",@"zhipaiche",params[1], params[2]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:urlString]];
+        return;
+    } else if ([url hasPrefix:@"comgooglemaps://"] && [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"comgooglemaps://"]]) {
+        // 谷歌地图
+        NSArray *params = [[url substringFromIndex:@"comgooglemaps://".length] componentsSeparatedByString:@"&"];
+        NSString *urlString = [[NSString stringWithFormat:@"comgooglemaps://?x-source=%@&x-success=%@&saddr=&daddr=%@,%@&directionsmode=driving",@"直拍车",@"zhipaiche",params[1], params[2]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:urlString]];
+        return;
+    } else if
+        ([url hasPrefix:@"applemap://"] && [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"http://maps.apple.com"]]) {
+        // 苹果地图
+        NSArray *params = [[url substringFromIndex:@"applemap://".length] componentsSeparatedByString:@"&"];
+        NSString *urlString = [[NSString stringWithFormat:@"http://maps.apple.com/?daddr=%@,%@&saddr=Current+Location",params[1], params[2]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:urlString]];
+        return;
+    } else {
+        [self navigate:call];
+    }
 }
 
 - (CGRect)parseRect:(NSDictionary *)rect {
